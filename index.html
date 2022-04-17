@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手写体识别</title>
+    <link rel="stylesheet" href="./index.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.0.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@1.0.2/dist/tfjs-vis.umd.min.js"></script> -->
+
+</head>
+
+<body>
+    <div id="app">
+        <div class="canvas-container">
+            <canvas width="240" height="240" ref="canvas" @mousedown="onMouseDown" @mousemove="onMouseMove"
+                @mouseup="drawEnd" @mouseleave="drawEnd" @touchstart="onMouseDown" @touchmove="onMouseMove"
+                @touchend="drawEnd" />
+            <div class="mask" v-show="loading">加载模型中：{{modelLoadingProgress}}%</div>
+        </div>
+        <div class="clear" @click="clear">clear</div>
+        <p class="result"><button @click="saveImg('手写体')" v-if="imgurl">保存图片</button> <img :src="imgurl" ref="imgurl"
+                alt="" v-if="imgurl"></p>
+    </div>
+    <script type="module">
+        import {reduceData,getCoordinates} from './utils.js'
+        
+        var vm = new Vue({
+            el: "#app",
+            data() {
+                return {
+                    result: '',
+                    loading: true,
+                    modelLoadingProgress: 0,
+                    imgurl:""
+                }
+            },
+           
+            methods: {
+                handleLoadingProgress(progress) {
+                    this.modelLoadingProgress = Math.round(progress)
+                },
+                onMouseDown(e) {
+                    e.preventDefault()
+                    this.drawLine(...getCoordinates(e))
+                    this.listenMouseMove = true
+                },
+                onMouseMove(e) {
+                    e.preventDefault()
+                    if (!this.listenMouseMove) return
+                    this.drawLine(...getCoordinates(e))
+                },
+                drawEnd() {
+                    if (!this.listenMouseMove) return
+                    this.listenMouseMove = false
+                    delete this.previousX
+                    delete this.previousY
+                    this.predict()
+                },
+                drawLine(x, y) {
+                    const {
+                        canvas
+                    } = this.$refs
+                    const ctx = canvas.getContext('2d')
+                    ctx.lineWidth = 20
+                    ctx.lineJoin = ctx.lineCap = 'round'
+                    ctx.strokeStyle = '#393E46'
+                    ctx.beginPath()
+                    const {
+                        previousX,
+                        previousY
+                    } = this
+                    if (previousX !== undefined) {
+                        ctx.moveTo(previousX, previousY)
+                    } else {
+                        ctx.moveTo(x, y)
+                    }
+                    ctx.lineTo(x, y)
+                    ctx.stroke()
+                    this.previousX = x
+                    this.previousY = y
+                },
+                predict() {
+                    const {
+                        canvas
+                        
+                    } = this.$refs
+                    const ctx = canvas.getContext('2d')
+                    const data = reduceData(ctx.getImageData(0, 0, 300, 300).data)
+                    var img = canvas.toDataURL("image/jpeg")
+                    this.imgurl = img
+                    
+                },
+                clear() {
+                    const {
+                        canvas
+                    } = this.$refs
+                    const ctx = canvas.getContext('2d')
+                    ctx.clearRect(0, 0, 280, 280)
+                    this.imgurl = ''
+                },
+                saveImg(name){
+                    if(this.imgurl){
+                        var a = document.createElement("a")
+                    var event = new MouseEvent('click')
+                    a.download = name || "下载图片"
+                    a.href = this.imgurl
+                    a.dispatchEvent(event)
+                    }else{
+                        alert('请手写文字')
+                    }
+                    
+                }
+            },
+
+        })
+    </script>
+
+</body>
+
+</html>
